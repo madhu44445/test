@@ -1,8 +1,0 @@
-*.zip
-.git
-.git-crypt
-terraform.tfvars
-.terraform
-terraform.tfstate
-terraform.tfstate.backup
-.DS_Store
