@@ -1,0 +1,29 @@
+node {
+    stage 'Checkout'
+    checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '89daadf7-f4ae-49ca-8bf2-92ba6cfb0c75', url: https://xxxxxxxxxxxxx@bitbucket.org/amplience/ops-apps-sample.git']]])
+    
+    def tfHome = tool name: 'Terraform', type: 'com.cloudbees.jenkins.plugins.customtools.CustomTool'
+    env.PATH = "${tfHome}:${env.PATH}"
+    wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm']) {
+        
+        stage name: 'Plan', concurrency: 1
+        sh "terraform --version"
+        if (fileExists(".terraform/terraform.tfstate")) {
+            sh "rm -rf .terraform/terraform.tfstate"
+        }
+        if (fileExists("status")) {
+            sh "rm status"
+        }
+        dir('ops') {
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: '94683d62-1dd8-48d5-a2cd-6c80d3594fc3', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                sh "echo ${env.AWS_ACCESS_KEY_ID}"
+                sh "terraform get"
+                sh "terraform init"               
+                sh "set +e; terraform plan -out=plan.out -detailed-exitcode; echo \$? > status"
+                def exitCode = readFile('status').trim()
+                def apply = false
+                echo "Terraform Plan Exit Code: ${exitCode}"
+            }
+        }
+    }
+}
